@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,12 +15,16 @@ namespace UserRegistration.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-        private IConfiguration _config;
+        private readonly IConfiguration _config;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration config)
+        public HomeController(ILogger<HomeController> logger, 
+                                IConfiguration config,
+                                 IHttpContextAccessor httpContextAccessor)
         {
             _config = config;           
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         [HttpGet]
@@ -38,10 +40,20 @@ namespace UserRegistration.Controllers
             if (ModelState.IsValid)
             {
                 token = GenerateJSONWebToken(userViewModel);
+
+                persistTokenInCookies(token);
                 ViewBag.Data = token;
             }
 
             return View();
+        }
+
+        private void persistTokenInCookies(string token)
+        {
+            CookieOptions options = new CookieOptions();
+            options.Expires = DateTime.Now.AddMinutes(5);
+            options.HttpOnly = true;
+            _httpContextAccessor.HttpContext.Response.Cookies.Append("JWTtoken", token, options);
         }
 
         private string GenerateJSONWebToken(UserViewModel userViewModel)
