@@ -17,14 +17,17 @@ namespace UserRegistration.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUserRepository _userRepository;
 
         public HomeController(ILogger<HomeController> logger, 
                                 IConfiguration config,
-                                 IHttpContextAccessor httpContextAccessor)
+                                IHttpContextAccessor httpContextAccessor,
+                                IUserRepository userRepository)
         {
             _config = config;           
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
@@ -37,15 +40,44 @@ namespace UserRegistration.Controllers
         public IActionResult Index(UserViewModel userViewModel)
         {
             string token = String.Empty;
+            if (checkIfUserAlreadyExists(userViewModel))
+            {
+                ModelState.AddModelError(String.Empty, "Error: User already exists");
+                return View(userViewModel);
+            }
+            
             if (ModelState.IsValid)
             {
-                token = GenerateJSONWebToken(userViewModel);
+                User newUser = saveUser(userViewModel);
 
-                persistTokenInCookies(token);
-                ViewBag.Data = token;
+                if (newUser != null)
+                {
+                    token = generateJSONWebToken(userViewModel);
+
+                    // saving the token in a httpOnly cookie.
+                    persistTokenInCookies(token);
+
+                    // TO BE REMOVED .. THIS HAS BEEN EXPOSED ON THE PAGE ONLY FOR QUICK VERIFICATION PURPOSE
+                    ViewBag.Data = token;
+                }                
             }
 
             return View();
+        }
+
+        private User saveUser(UserViewModel userViewModel)
+        {
+            User user = new User();
+            user.Username = userViewModel.Username;
+            user.Password = userViewModel.Password;
+
+            User newUser = _userRepository.CreateUser(user);
+            return newUser;
+        }
+
+        private bool checkIfUserAlreadyExists(UserViewModel userViewModel)
+        {
+            return (_userRepository.GetUserByUserName(userViewModel.Username) != null);
         }
 
         private void persistTokenInCookies(string token)
@@ -53,17 +85,17 @@ namespace UserRegistration.Controllers
             CookieOptions options = new CookieOptions();
             options.Expires = DateTime.Now.AddMinutes(5);
             options.HttpOnly = true;
-            _httpContextAccessor.HttpContext.Response.Cookies.Append("JWTtoken", token, options);
+            _httpContextAccessor.HttpContext.Response.Cookies.Append(StaticKeys.JwtTokenCookie, token, options);
         }
 
-        private string GenerateJSONWebToken(UserViewModel userViewModel)
+        private string generateJSONWebToken(UserViewModel userViewModel)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config[StaticKeys.JwtKey]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            var securityToken = new JwtSecurityToken(_config["Jwt:Issuer"],
-              _config["Jwt:Issuer"],
+            var securityToken = new JwtSecurityToken(_config[StaticKeys.JwtIssuer],
+              _config[StaticKeys.JwtIssuer],
               new Claim[] {
-                    new Claim(ClaimTypes.NameIdentifier, userViewModel.Id.ToString())
+                    new Claim(ClaimTypes.Name, userViewModel.Username)       // This username can be verified when the token is verified using a JWT debugger at https://jwt.io/ 
                  },
               null,
               expires: DateTime.Now.AddMinutes(120),
