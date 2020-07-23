@@ -2,7 +2,7 @@
 
 namespace UserRegistration.Migrations
 {
-    public partial class InitialDBcreaion : Migration
+    public partial class InitialDBcreation : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {

@@ -10,7 +10,7 @@ namespace UserRegistration.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20200723105743_Initial DB creaion")]
-    partial class InitialDBcreaion
+    partial class InitialDBcreation
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
