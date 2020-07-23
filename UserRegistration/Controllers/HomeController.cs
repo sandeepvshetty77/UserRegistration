@@ -14,20 +14,17 @@ namespace UserRegistration.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
-        private readonly IConfiguration _config;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<HomeController> _logger;  
         private readonly IUserRepository _userRepository;
+        private readonly ITokenManager _tokenManager;
 
         public HomeController(ILogger<HomeController> logger, 
-                                IConfiguration config,
-                                IHttpContextAccessor httpContextAccessor,
-                                IUserRepository userRepository)
+                              IUserRepository userRepository,
+                              ITokenManager tokenManager)
         {
-            _config = config;           
             _logger = logger;
-            _httpContextAccessor = httpContextAccessor;
             _userRepository = userRepository;
+            _tokenManager = tokenManager;
         }
 
         [HttpGet]
@@ -52,10 +49,10 @@ namespace UserRegistration.Controllers
 
                 if (newUser != null)
                 {
-                    token = generateJSONWebToken(userViewModel);
+                    token = _tokenManager.GenerateToken(userViewModel);
 
-                    // saving the token in a httpOnly cookie.
-                    persistTokenInCookies(token);
+                    // saving the token 
+                    _tokenManager.SaveToken(token);
 
                     // TO BE REMOVED .. THIS HAS BEEN EXPOSED ON THE PAGE ONLY FOR QUICK VERIFICATION PURPOSE
                     ViewBag.Data = token;
@@ -78,34 +75,6 @@ namespace UserRegistration.Controllers
         private bool checkIfUserAlreadyExists(UserViewModel userViewModel)
         {
             return (_userRepository.GetUserByUserName(userViewModel.Username) != null);
-        }
-
-        private void persistTokenInCookies(string token)
-        {
-            CookieOptions options = new CookieOptions();
-            options.Expires = DateTime.Now.AddMinutes(5);
-            options.HttpOnly = true;
-            _httpContextAccessor.HttpContext.Response.Cookies.Append(StaticKeys.JwtTokenCookie, token, options);
-        }
-
-        private string generateJSONWebToken(UserViewModel userViewModel)
-        {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config[StaticKeys.JwtKey]));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            var securityToken = new JwtSecurityToken(_config[StaticKeys.JwtIssuer],
-              _config[StaticKeys.JwtIssuer],
-              new Claim[] {
-                    new Claim(ClaimTypes.Name, userViewModel.Username)       // This username can be verified when the token is verified using a JWT debugger at https://jwt.io/ 
-                 },
-              null,
-              expires: DateTime.Now.AddMinutes(120),
-              signingCredentials: credentials);
-
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.WriteToken(securityToken);
-
-            return token;
         }
 
         public IActionResult Privacy()

@@ -41,6 +41,7 @@ namespace UserRegistration
                 });
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<ITokenManager, TokenManager>();
             services.AddDbContextPool<AppDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString(StaticKeys.UsersDbConnectionString)));
             services.AddControllersWithViews();
         }
