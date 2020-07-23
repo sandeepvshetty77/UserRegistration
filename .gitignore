@@ -3,3 +3,6 @@
 ################################################################################
 
 /.vs
+/UserRegistration/obj
+/UserRegistration/.vs/UserRegistration/v16/TestStore/0
+/UserRegistration/.vs/UserRegistration/v16/.suo
